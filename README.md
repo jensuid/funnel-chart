@@ -46,6 +46,22 @@ pnpm add -D @playwright/test && pnpm exec playwright install chromium
 pnpm exec playwright test
 ```
 
+## Publikasi package (disiapkan, belum aktif)
+
+Package sudah siap publish: build lib (`pnpm build:lib`), deklarasi tipe,
+`exports` map, `LICENSE`, dan workflow CI `.github/workflows/ci.yml` dengan job
+`publish` ter-gate tag `v*`. Saat ini `"private": true` — publish sengaja
+nonaktif. Untuk mengaktifkan:
+
+1. Ganti `repository.url` di `package.json` ke repo asli.
+2. Set `"private": false`.
+3. Set secret `NPM_TOKEN` di GitHub repo settings.
+4. Tag & push: `git tag v0.1.0 && git push origin v0.1.0` — CI menjalankan
+   verify + publish (butuh approval environment `npm-publish`).
+
+`prepublishOnly` otomatis menjalankan test + typecheck + build lib sebelum
+setiap `pnpm publish`.
+
 ## Dokumentasi
 
 | Dokumen | Isi |

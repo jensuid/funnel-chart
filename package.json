@@ -4,10 +4,32 @@
   "private": true,
   "type": "module",
   "description": "FunnelAnalysis — composite funnel overview + conversion trend visualization (React + ECharts)",
+  "keywords": [
+    "react",
+    "echarts",
+    "funnel",
+    "funnel-chart",
+    "conversion",
+    "data-visualization",
+    "charts"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://example.com/your-org/funnel-chart.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
+    "prepublishOnly": "pnpm test && pnpm typecheck && pnpm build:lib",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
