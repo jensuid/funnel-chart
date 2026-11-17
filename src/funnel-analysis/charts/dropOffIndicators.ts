@@ -28,12 +28,18 @@ export interface BuildTransitionLabelSeriesInput {
   stages: FunnelStageViewModel[];
   tokens: ThemeTokens;
   fontFamily: string;
+  /** Layout mirrors of the MAIN series — required for perfect alignment. */
+  sort: "descending" | "ascending" | "none";
+  orient: "vertical" | "horizontal";
+  minSize: number;
+  maxSize: number;
+  gap: number;
 }
 
 export function buildTransitionLabelSeries(
   input: BuildTransitionLabelSeriesInput,
 ): Record<string, unknown> {
-  const { stages, tokens, fontFamily } = input;
+  const { stages, tokens, fontFamily, sort, orient, minSize, maxSize, gap } = input;
 
   const data: TransitionLabelDatum[] = stages.map((vm, index) => {
     const incoming =
@@ -68,11 +74,11 @@ export function buildTransitionLabelSeries(
     type: "funnel",
     id: "funnel-transition-labels",
     // Must mirror the main series exactly so shapes align.
-    sort: "descending",
-    orient: "vertical",
-    minSize: "0%",
-    maxSize: "100%",
-    gap: 5,
+    sort,
+    orient,
+    minSize: `${minSize}%`,
+    maxSize: `${maxSize}%`,
+    gap,
     z: 3,
     silent: true,
     data,

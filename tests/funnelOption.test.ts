@@ -44,6 +44,27 @@ describe("createFunnelOption — structure", () => {
     });
   });
 
+  it("overlay mirrors NON-default layout (horizontal, ascending, custom gap)", () => {
+    const option = buildOption({
+      config: {
+        orientation: "horizontal",
+        sort: "ascending",
+        gap: 12,
+        minSize: 10,
+        maxSize: 90,
+        showDropOffIndicators: true,
+      },
+    }) as { series: Record<string, unknown>[] };
+    const overlay = option.series.find((s) => s.id === "funnel-transition-labels")!;
+    const main = option.series.find((s) => s.id === "funnel-stages")!;
+    for (const key of ["sort", "orient", "minSize", "maxSize", "gap"]) {
+      expect(overlay[key]).toBe(main[key]);
+    }
+    expect(overlay.orient).toBe("horizontal");
+    expect(overlay.sort).toBe("ascending");
+    expect(overlay.gap).toBe(12);
+  });
+
   it("adds a transparent transition-label series when showDropOffIndicators", () => {
     const option = buildOption() as { series: Record<string, unknown>[] };
     expect(option.series.length).toBe(2);
@@ -104,6 +125,11 @@ describe("buildTransitionLabelSeries", () => {
     stages: stageVms,
     tokens,
     fontFamily: tokens.fontFamily,
+    sort: "descending",
+    orient: "vertical",
+    minSize: 0,
+    maxSize: 100,
+    gap: 5,
   }) as { data: { incomingConversion: number | null; incomingDropOff: number | null }[] };
 
   it("first stage has no incoming transition", () => {

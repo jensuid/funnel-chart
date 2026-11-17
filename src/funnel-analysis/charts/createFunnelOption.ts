@@ -146,6 +146,11 @@ export function createFunnelOption(
         stages,
         tokens,
         fontFamily: tokens.fontFamily,
+        sort,
+        orient: config?.orientation ?? "vertical",
+        minSize: config?.minSize ?? 0,
+        maxSize: config?.maxSize ?? 100,
+        gap,
       }),
     );
   }
