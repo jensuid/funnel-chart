@@ -20,6 +20,8 @@ export interface FunnelStageDatum {
   stageToStageConversion: number | null;
   dropOff: number | null;
   selected: boolean;
+  /** Precomputed label text (tiered content in auto mode). */
+  labelText?: string;
   /** Per-datum label overrides (auto placement / contrast-aware color). */
   label?: Record<string, unknown>;
   itemStyle: {
@@ -105,21 +107,16 @@ export function createFunnelOption(
     };
   });
 
-  const labelLines = (d: FunnelStageDatum): string => {
-    const lines = [d.name];
-    if (showValues) lines.push(formatCount(d.value));
-    if (showCumulativeConversion) {
-      lines.push(formatPercent(d.cumulativeConversion));
-    }
-    return lines.join("\n");
-  };
-
   // --- label placement (auto strategy) -------------------------------------
   // "auto": bars narrower than `labelOutsideThreshold`% of the widest bar
   // get their label moved OUTSIDE (readable on the background); the rest
   // keep the configured inside position. "fixed" always uses labelPosition.
   const labelStrategy = config?.labelStrategy ?? "auto";
-  const outsideThreshold = config?.labelOutsideThreshold ?? 15;
+  // Adaptive default: dense funnels need more labels outside. Explicit
+  // config always wins. ~2% per stage, clamped to [15, 40].
+  const outsideThreshold =
+    config?.labelOutsideThreshold ??
+    Math.min(40, Math.max(15, stages.length * 2));
   const configuredPosition = config?.labelPosition ?? "inside";
   const maxValue = Math.max(...stages.map((s) => s.count), 1);
   /** Stage ids whose label lives OUTSIDE — overlay labels blanked there. */
@@ -132,6 +129,13 @@ export function createFunnelOption(
     const position =
       labelStrategy === "auto" && narrow ? "outside" : configuredPosition;
     if (position === "outside") outsideStageIds.add(vm.stage.id);
+    // Tiered content: narrow bars drop the count line first (it is visually
+    // redundant with bar width) to reduce crowding in dense funnels.
+    const compact =
+      labelStrategy === "auto" && relativeWidth < (config?.compactLabelThreshold ?? 25);
+    const lines = [vm.stage.label];
+    if (showValues && !compact) lines.push(formatCount(vm.count));
+    if (showCumulativeConversion) lines.push(formatPercent(vm.cumulativeConversion));
     (data[index]!.label as Record<string, unknown>) = {
       position,
       // Outside → text color (visible on the background). Inside →
@@ -145,6 +149,7 @@ export function createFunnelOption(
                 : stageColor(index, theme, palette),
             ),
     };
+    data[index]!.labelText = lines.join("\n");
   }
 
   const series: Record<string, unknown>[] = [
@@ -168,8 +173,10 @@ export function createFunnelOption(
         fontSize: 12,
         lineHeight: 16,
         formatter: (params: { data?: unknown }) =>
-          labelLines(params.data as FunnelStageDatum),
+          (params.data as FunnelStageDatum | undefined)?.labelText ?? "",
       },
+      // Native overlap handling — essential for dense funnels (many stages).
+      labelLayout: { hideOverlap: true },
       emphasis: {
         label: { show: true, fontWeight: "bold" as const },
         itemStyle: { opacity: 0.85 },
@@ -195,6 +202,8 @@ export function createFunnelOption(
         gap,
         /** Blank overlay labels where the stage label moved outside. */
         hiddenStageIds: outsideStageIds,
+        /** Crowding guard: hide overlay labels on dense funnels. */
+        maxLabeledStages: config?.dropOffLabelMaxStages ?? 8,
       }),
     );
   }

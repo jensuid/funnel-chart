@@ -75,6 +75,10 @@ export interface FunnelChartConfig {
   labelStrategy?: "fixed" | "auto";
   /** Bar narrower than this % of the widest bar → label outside (auto mode). */
   labelOutsideThreshold?: number;
+  /** Bars narrower than this % drop the count line (auto mode, default 25). */
+  compactLabelThreshold?: number;
+  /** Overlay drop-off labels auto-hide above this stage count (default 8). */
+  dropOffLabelMaxStages?: number;
   showValues?: boolean;
   showPercentages?: boolean;
   showDropOffIndicators?: boolean;

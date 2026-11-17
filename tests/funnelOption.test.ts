@@ -157,9 +157,40 @@ describe("createFunnelOption — label placement", () => {
     const main = option.series.find((s) => s.id === "funnel-stages")!;
     const data = main.data as { id: string; label?: { position: string } }[];
     // Counts 1000/700/350/175/70 → widths 100/70/35/17.5/7% of widest.
-    // Default threshold 15 → only "purchase" (7%) moves outside.
+    // Adaptive default threshold for 5 stages = 15 → only "purchase" (7%) outside.
     expect(data.find((d) => d.id === "visitors")!.label!.position).toBe("inside");
     expect(data.find((d) => d.id === "purchase")!.label!.position).toBe("outside");
+  });
+
+  it("outside threshold adapts to stage count (dense funnels move more labels out)", () => {
+    const stages12 = Array.from({ length: 12 }, (_, i) => ({
+      stage: { id: `s${i + 1}`, label: `Stage ${i + 1}`, order: i + 1 },
+      count: Math.round(100000 / Math.pow(1.35, i)),
+      cumulativeConversion: 100,
+      stageToStageConversion: 50,
+      dropOff: 50,
+    })) as never;
+    const option = createFunnelOption({
+      stages: stages12,
+      selectedStageIds: [],
+      hoveredStageId: null,
+    }) as { series: Record<string, unknown>[] };
+    const main = option.series.find((s) => s.id === "funnel-stages")!;
+    const data = main.data as { label?: { position: string } }[];
+    const outsideCount = data.filter((d) => d.label!.position === "outside").length;
+    // Adaptive threshold for 12 stages = 24% → stages at 22% and below move out.
+    expect(outsideCount).toBeGreaterThanOrEqual(6);
+    // Explicit config still wins over the adaptive default (threshold 5%
+    // → only the two narrowest stages, 3.7% and 4.97%, move outside).
+    const optionFixed = createFunnelOption({
+      stages: stages12,
+      selectedStageIds: [],
+      hoveredStageId: null,
+      config: { labelOutsideThreshold: 5 },
+    }) as { series: Record<string, unknown>[] };
+    const dataFixed = (optionFixed.series.find((s) => s.id === "funnel-stages")!
+      .data as { label?: { position: string } }[]);
+    expect(dataFixed.filter((d) => d.label!.position === "outside").length).toBe(2);
   });
 
   it("fixed strategy keeps every label at the configured position", () => {
@@ -193,6 +224,38 @@ describe("createFunnelOption — label placement", () => {
     const cartDatum = { stageId: "cart", incomingConversion: 50, incomingDropOff: 50 };
     expect(formatter({ data: purchaseDatum })).toBe(""); // purchase label is outside
     expect(formatter({ data: cartDatum })).not.toBe("");
+  });
+
+  it("both series use labelLayout hideOverlap (dense-funnel crowding)", () => {
+    const option = buildOption({}) as { series: Record<string, unknown>[] };
+    for (const s of option.series) {
+      expect((s.labelLayout as { hideOverlap?: boolean }).hideOverlap).toBe(true);
+    }
+  });
+
+  it("auto mode drops the count line on narrow bars (tiered content)", () => {
+    const option = buildOption({}) as { series: Record<string, unknown>[] };
+    const main = option.series.find((s) => s.id === "funnel-stages")!;
+    const data = main.data as { id: string; labelText: string }[];
+    // checkout is 17.5% wide → compact (name + % only, no count).
+    expect(data.find((d) => d.id === "checkout")!.labelText).not.toContain("175");
+    expect(data.find((d) => d.id === "checkout")!.labelText).toContain("17.5%");
+    // visitors is widest → full label with count.
+    expect(data.find((d) => d.id === "visitors")!.labelText).toContain("1,000");
+  });
+
+  it("overlay labels auto-hide above dropOffLabelMaxStages", () => {
+    const option = buildOption({
+      config: { dropOffLabelMaxStages: 3 },
+    }) as { series: Record<string, unknown>[] };
+    const overlay = option.series.find((s) => s.id === "funnel-transition-labels")!;
+    expect((overlay.label as { show: boolean }).show).toBe(false);
+
+    const option2 = buildOption({
+      config: { dropOffLabelMaxStages: 8 },
+    }) as { series: Record<string, unknown>[] };
+    const overlay2 = option2.series.find((s) => s.id === "funnel-transition-labels")!;
+    expect((overlay2.label as { show: boolean }).show).toBe(true);
   });
 });
 

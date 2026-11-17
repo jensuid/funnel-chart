@@ -12,9 +12,11 @@ init dengan `{ renderer: "svg" }`. SVG dipilih demi ketajaman teks dan a11y.
 - Label (D3): dari view model datum — `name`, count terformat, cumulative % —
   via `formatter`, bukan template `{b}\n{c}`.
 - **Penempatan label** — `labelStrategy`:
-  - `"auto"` (default): bar yang lebarnya < `labelOutsideThreshold`% (default 15)
-    dari bar terlebar otomatis pindah labelnya ke LUAR (terbaca di background);
-    sisanya tetap di dalam. Warna label dalam kontras-aware
+  - `"auto"` (default): bar yang lebarnya < threshold dari bar terlebar otomatis
+    pindah labelnya ke LUAR (terbaca di background); sisanya tetap di dalam.
+    **Threshold default adaptif terhadap jumlah stage** — `min(40, max(15, n×2))%`
+    (5 stage → 15%, 12 stage → 24%, cap 40%); funnel padat memindahkan lebih
+    banyak label ke luar. Nilai eksplisit `labelOutsideThreshold` selalu menang. Warna label dalam kontras-aware
     (`readableTextColor`) — teks gelap di atas fill terang (mis. ujung light
     dari monochrome ramp), putih di atas fill gelap.
   - `"fixed"`: semua label mengikuti `labelPosition` apa adanya.
@@ -22,6 +24,14 @@ init dengan `{ renderer: "svg" }`. SVG dipilih demi ketajaman teks dan a11y.
     label putih tak terlihat di background putih).
   - Anti-tabrakan: saat label stage pindah ke luar, label drop-off overlay di
     stage yang sama dikosongkan (info tetap ada di tooltip & data table).
+  - `labelLayout: { hideOverlap: true }` di kedua series — ECharts otomatis
+    menyembunyikan label yang bertumpuk (penting untuk funnel padat).
+- **Konten label bertingkat** (auto mode): bar < `compactLabelThreshold`%
+  (default 25) dari bar terlebar membuang baris count dulu (redundan secara
+  visual dengan lebar bar) — hanya nama + %.
+- **`dropOffLabelMaxStages`** (default 8): label drop-off overlay otomatis
+  mati untuk funnel dengan stage lebih banyak — mencegah penggandaan label;
+  info drop-off tetap di tooltip & data table.
 - Drop-off indicators (D3): series funnel kedua **transparan** dengan layout
   identik (sort/orient/min/max/gap) hanya untuk label luar.
 - `itemStyle`: fill = warna stage brand; `borderColor = accessibleStroke(...)`

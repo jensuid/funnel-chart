@@ -36,12 +36,14 @@ export interface BuildTransitionLabelSeriesInput {
   gap: number;
   /** Stage ids whose own label moved outside — overlay labels blanked. */
   hiddenStageIds?: Set<string>;
+  /** Overlay labels auto-hide above this stage count (crowding guard). */
+  maxLabeledStages?: number;
 }
 
 export function buildTransitionLabelSeries(
   input: BuildTransitionLabelSeriesInput,
 ): Record<string, unknown> {
-  const { stages, tokens, fontFamily, sort, orient, minSize, maxSize, gap, hiddenStageIds } = input;
+  const { stages, tokens, fontFamily, sort, orient, minSize, maxSize, gap, hiddenStageIds, maxLabeledStages } = input;
 
   const data: TransitionLabelDatum[] = stages.map((vm, index) => {
     const incoming =
@@ -87,7 +89,7 @@ export function buildTransitionLabelSeries(
     silent: true,
     data,
     label: {
-      show: true,
+      show: maxLabeledStages === undefined || stages.length <= maxLabeledStages,
       position: "outside",
       color: tokens.mutedTextColor,
       fontFamily,
@@ -97,6 +99,7 @@ export function buildTransitionLabelSeries(
         formatter(params.data as TransitionLabelDatum),
     },
     labelLine: { show: false },
+    labelLayout: { hideOverlap: true },
     emphasis: { disabled: true },
     tooltip: { show: false },
     // Never interactive or animated independently.
