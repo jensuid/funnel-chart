@@ -7,18 +7,34 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint ."
   },
+  "main": "./dist/funnel-chart.cjs",
+  "module": "./dist/funnel-chart.js",
+  "types": "./dist/lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "import": "./dist/funnel-chart.js",
+      "require": "./dist/funnel-chart.cjs"
+    },
+    "./funnel-chart.css": "./dist/funnel-chart.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
   "peerDependencies": {
+    "echarts": "^6.0.0",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"
-  },
-  "dependencies": {
-    "echarts": "^6.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.1",
@@ -27,6 +43,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "echarts": "^6.0.0",
     "eslint": "^9.17.0",
     "jsdom": "^25.0.1",
     "typescript": "~5.7.2",
