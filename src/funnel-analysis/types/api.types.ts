@@ -74,7 +74,14 @@ export interface FunnelChartConfig {
   showValues?: boolean;
   showPercentages?: boolean;
   showDropOffIndicators?: boolean;
+  /** Explicit per-stage palette (wins over theme.stageColors). */
   colorPalette?: string[];
+  /** "ramp" derives the palette from one baseColor (light → base → dark). */
+  colorMode?: "palette" | "ramp";
+  /** Base color for colorMode "ramp" (any hex, e.g. "#3B82F6"). */
+  baseColor?: string;
+  /** Per-bar linear gradient (stage color → lighter variant). */
+  fillGradient?: boolean;
   selectedStageEmphasis?: boolean;
 }
 

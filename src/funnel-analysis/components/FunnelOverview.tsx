@@ -14,6 +14,8 @@ export interface FunnelOverviewProps {
   /** Computed by the composite via focusStageIds(). */
   selectedStageIds: string[];
   theme?: FunnelAnalysisTheme;
+  /** Effective stage palette resolved by the composite (ramp/override aware). */
+  stagePalette?: string[];
   config?: FunnelChartConfig;
   showStageLabels?: boolean;
   showCumulativeConversion?: boolean;
@@ -26,6 +28,7 @@ export function FunnelOverview({
   interaction,
   selectedStageIds,
   theme,
+  stagePalette,
   config,
   showStageLabels = true,
   showCumulativeConversion = true,
@@ -39,13 +42,14 @@ export function FunnelOverview({
         selectedStageIds,
         hoveredStageId: interaction.state.hoveredStageId,
         theme,
+        stagePalette,
         config,
         showCumulativeConversion,
         showValues: showStageLabels,
         showDropOffIndicators: showDropOff,
         animation,
       }),
-    [stages, selectedStageIds, interaction, theme, config, showStageLabels, showCumulativeConversion, showDropOff, animation],
+    [stages, selectedStageIds, interaction, theme, stagePalette, config, showStageLabels, showCumulativeConversion, showDropOff, animation],
   );
 
   return (

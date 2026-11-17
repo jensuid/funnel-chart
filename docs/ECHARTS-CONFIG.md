@@ -36,5 +36,27 @@ Axis tooltip trend; hanya series yang terlihat; nilai `null` dirender `—`.
   Teal `#14B8A6`, Green `#22C55E`, Amber `#F59E0B`; diulang untuk funnel > 5 stage;
   `theme.stageColors` menimpa.
 - Token light/dark: `textColor` 4.5:1 di atas `background` (WCAG 1.4.3).
-- `accessibleStroke(index, theme, background)`: menggelapkan warna bertahap
+- `accessibleStroke(index, theme, background, palette)`: menggelapkan warna bertahap
   (blend ke hitam, langkah 0.1) sampai kontras ≥ 3:1 — fill brand tidak diubah.
+
+## Kustomisasi warna (`resolveStagePalette`)
+
+Palette efektif stage disederhanakan menjadi satu sumber kebenaran yang dipakai
+funnel fill, trend line, dan transition color (D2 tetap konsisten). Prioritas:
+
+1. **Ramp monokrom** — `funnel.colorMode: "ramp"` + `funnel.baseColor`:
+   satu warna dasar disapu light tint → base → dark shade sepanjang jumlah
+   stage (`monochromeRamp`). Cocok untuk funnel karena gradasi menegaskan
+   progresi; bekerja untuk jumlah stage berapa pun.
+2. **`funnel.colorPalette`** — palette eksplisit per stage (dahulu dideklarasikan
+   tapi tidak dikonsumsi; kini aktif).
+3. **`theme.stageColors`** — palette level tema.
+4. **Default brand palette**.
+
+Trend chart punya override sendiri (`trend.colorPalette`) yang menang atas
+palette efektif funnel jika di-set eksplisit.
+
+**Gradient fill per bar** — `funnel.fillGradient: true` mengisi tiap bar dengan
+gradient linear (warna stage → varian lebih terang 45%), arah mengikuti
+`orientation`. Stroke a11y tetap dihitung dari warna dasar stage, jadi WCAG
+1.4.11 tetap terpenuhi untuk mode palette maupun ramp.

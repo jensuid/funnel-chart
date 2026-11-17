@@ -14,7 +14,8 @@ import {
   incompleteFixture,
   largeFixture,
 } from "../../tests/fixtures";
-import { Section, Toggle, Num, Choice, Text } from "./controls";
+import { Section, Toggle, Num, Choice, Text, Row } from "./controls";
+import { resolveStagePalette } from "../funnel-analysis/charts/chartTheme";
 
 /**
  * Interactive playground — every supported FunnelAnalysisConfig option,
@@ -78,6 +79,9 @@ export function App() {
   const [showPercentages, setShowPercentages] = useState(true);
   const [showDropOffIndicators, setShowDropOffIndicators] = useState(true);
   const [selectedStageEmphasis, setSelectedStageEmphasis] = useState(true);
+  const [colorMode, setColorMode] = useState<"palette" | "ramp">("palette");
+  const [baseColor, setBaseColor] = useState("#3B82F6");
+  const [fillGradient, setFillGradient] = useState(false);
 
   // --- trend chart ------------------------------------------------------------
   const [smooth, setSmooth] = useState(false);
@@ -151,6 +155,9 @@ export function App() {
       showPercentages,
       showDropOffIndicators,
       selectedStageEmphasis,
+      colorMode,
+      baseColor: colorMode === "ramp" ? baseColor : undefined,
+      fillGradient,
     },
     trend: {
       smooth,
@@ -231,6 +238,39 @@ export function App() {
           <Toggle label="showPercentages" value={showPercentages} onChange={setShowPercentages} />
           <Toggle label="showDropOffIndicators" value={showDropOffIndicators} onChange={setShowDropOffIndicators} />
           <Toggle label="selectedStageEmphasis" value={selectedStageEmphasis} onChange={setSelectedStageEmphasis} />
+          <Choice label="colorMode" value={colorMode} options={["palette", "ramp"] as const} onChange={setColorMode} />
+          {colorMode === "ramp" && (
+            <Row label="baseColor">
+              <input
+                type="color"
+                value={baseColor}
+                onChange={(e) => setBaseColor(e.target.value)}
+              />
+            </Row>
+          )}
+          <Toggle label="fillGradient" value={fillGradient} onChange={setFillGradient} />
+          <div className="demo-row" style={{ gap: 4 }}>
+            {resolveStagePalette(
+              (FIXTURES[fixture] ?? standardFunnelFixture).stages.length,
+              undefined,
+              {
+                colorMode,
+                baseColor: colorMode === "ramp" ? baseColor : undefined,
+              },
+            ).map((c, i) => (
+              <span
+                key={i}
+                title={c}
+                style={{
+                  width: 22,
+                  height: 14,
+                  borderRadius: 3,
+                  background: c,
+                  display: "inline-block",
+                }}
+              />
+            ))}
+          </div>
         </Section>
 
         <Section title="Trend chart">

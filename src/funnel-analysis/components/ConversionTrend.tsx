@@ -23,6 +23,8 @@ export interface ConversionTrendProps {
   /** Computed by the composite via focusTransitionIds(). */
   highlightedTransitionIds: string[];
   theme?: FunnelAnalysisTheme;
+  /** Effective stage palette resolved by the composite (ramp/override aware). */
+  stagePalette?: string[];
   config?: TrendChartConfig;
   showLegend?: boolean;
   animation?: boolean;
@@ -35,6 +37,7 @@ export function ConversionTrend({
   interaction,
   highlightedTransitionIds,
   theme,
+  stagePalette,
   config,
   showLegend = true,
   animation = true,
@@ -49,10 +52,11 @@ export function ConversionTrend({
         highlightedTransitionIds,
         hoveredTransitionId: interaction.state.hoveredTransitionId,
         theme,
+        stagePalette,
         config: showLegend ? config : { ...config, legendPosition: "bottom" },
         animation,
       }),
-    [trend, transitions, stages, interaction, highlightedTransitionIds, theme, config, showLegend, animation],
+    [trend, transitions, stages, interaction, highlightedTransitionIds, theme, stagePalette, config, showLegend, animation],
   );
 
   const onEvents = useMemo(() => {

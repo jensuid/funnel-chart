@@ -10,6 +10,7 @@ import {
   computeTransitions,
 } from "../metrics/calculateFunnelMetrics";
 import { generateInsights } from "../insights/generateInsights";
+import { resolveStagePalette } from "../charts/chartTheme";
 import {
   focusStageIds,
   focusTransitionIds,
@@ -107,6 +108,16 @@ export function FunnelAnalysis({
     });
   }, [model, config?.insights]);
 
+  const stagePalette = useMemo(
+    () =>
+      resolveStagePalette(
+        model?.funnelVm?.stages.length ?? data.stages.length,
+        config?.theme,
+        config?.funnel,
+      ),
+    [model?.funnelVm?.stages.length, data.stages.length, config?.theme, config?.funnel],
+  );
+
   const selectedStageIds = useMemo(
     () => focusStageIds(interaction.state, model?.transitions ?? []),
     [interaction.state, model?.transitions],
@@ -151,6 +162,7 @@ export function FunnelAnalysis({
                 interaction={interaction}
                 selectedStageIds={selectedStageIds}
                 theme={config?.theme}
+                stagePalette={stagePalette}
                 config={config?.funnel}
                 showStageLabels={config?.showStageLabels}
                 showCumulativeConversion={config?.showCumulativeConversion}
@@ -168,6 +180,7 @@ export function FunnelAnalysis({
               interaction={interaction}
               highlightedTransitionIds={highlightedTransitionIds}
               theme={config?.theme}
+              stagePalette={stagePalette}
               config={config?.trend}
               showLegend={config?.showLegend}
               animation={config?.animation?.enabled}

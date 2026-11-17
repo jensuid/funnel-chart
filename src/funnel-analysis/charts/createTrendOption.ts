@@ -8,7 +8,7 @@ import type {
   TrendChartConfig,
 } from "../types/api.types";
 import type { EChartsCoreOption } from "./echartsSetup";
-import { resolveTheme, transitionColor, accessibleStroke } from "./chartTheme";
+import { resolveTheme, transitionColor, accessibleStroke, resolveStagePalette } from "./chartTheme";
 import { createTrendTooltipFormatter, type TooltipSeriesMeta } from "./tooltipFormatter";
 
 /**
@@ -29,6 +29,8 @@ export interface CreateTrendOptionInput {
   hoveredTransitionId?: string | null;
   theme?: FunnelAnalysisTheme;
   config?: TrendChartConfig;
+  /** Effective stage palette resolved by the composite (ramp/override aware). */
+  stagePalette?: string[];
   animation?: boolean;
   animationDurationMs?: number;
 }
@@ -75,11 +77,16 @@ export function createTrendOption(
     hoveredTransitionId,
     theme,
     config,
+    stagePalette,
     animation = true,
     animationDurationMs = 300,
   } = input;
 
   const tokens = resolveTheme(theme);
+  // Trend-specific palette wins if explicitly set; otherwise share the
+  // funnel's effective palette so D2 stays consistent (ramp-aware).
+  const palette =
+    config?.colorPalette ?? stagePalette ?? resolveStagePalette(stages.length, theme);
   const periods = trendPeriods(trend);
   const visible = new Set(visibleSeriesIds);
 
@@ -97,7 +104,7 @@ export function createTrendOption(
 
   const series = transitions.map((transition) => {
     const stageIndex = destinationIndex(transition, stages);
-    const color = transitionColor(stageIndex, theme);
+    const color = transitionColor(stageIndex, theme, palette);
     const name = trendSeriesName(transition, stages);
     seriesMeta.push({ id: transition.id, name, color });
 
@@ -119,7 +126,7 @@ export function createTrendOption(
       itemStyle: { color },
       lineStyle: {
         // WCAG 1.4.11: line stroke meets 3:1 on the light background.
-        color: accessibleStroke(stageIndex, theme),
+        color: accessibleStroke(stageIndex, theme, "#FFFFFF", palette),
         width: isHighlighted || isHovered ? lineWidth + 1 : lineWidth,
         ...(subdued ? { opacity: 0.25 } : {}),
       },

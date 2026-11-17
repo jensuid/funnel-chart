@@ -1,7 +1,7 @@
 import type { FunnelStageViewModel } from "../types/funnelAnalysis.types";
 import type { FunnelChartConfig, FunnelAnalysisTheme } from "../types/api.types";
 import type { EChartsCoreOption } from "./echartsSetup";
-import { resolveTheme, stageColor, accessibleStroke } from "./chartTheme";
+import { resolveTheme, stageColor, accessibleStroke, resolveStagePalette, barGradient } from "./chartTheme";
 import { buildTransitionLabelSeries } from "./dropOffIndicators";
 
 /**
@@ -21,7 +21,7 @@ export interface FunnelStageDatum {
   dropOff: number | null;
   selected: boolean;
   itemStyle: {
-    color: string;
+    color: string | Record<string, unknown>;
     borderColor?: string;
     borderWidth?: number;
   };
@@ -33,6 +33,8 @@ export interface CreateFunnelOptionInput {
   selectedStageIds: string[];
   hoveredStageId: string | null;
   theme?: FunnelAnalysisTheme;
+  /** Effective stage palette resolved by the composite (ramp/override aware). */
+  stagePalette?: string[];
   config?: FunnelChartConfig;
   showCumulativeConversion?: boolean;
   showValues?: boolean;
@@ -70,9 +72,12 @@ export function createFunnelOption(
   const tokens = resolveTheme(theme);
   const gap = config?.gap ?? 5;
   const sort = config?.sort ?? "descending";
+  const orient = config?.orientation ?? "vertical";
+  // Single source of truth for stage colors (ramp / custom palette / default).
+  const palette = resolveStagePalette(stages.length, theme, config);
 
   const data: FunnelStageDatum[] = stages.map((vm, index) => {
-    const color = stageColor(index, theme);
+    const color = stageColor(index, theme, palette);
     const isSelected = selectedStageIds.includes(vm.stage.id);
     const isHovered = hoveredStageId === vm.stage.id;
     return {
@@ -84,9 +89,9 @@ export function createFunnelOption(
       dropOff: vm.dropOff,
       selected: isSelected,
       itemStyle: {
-        color,
+        color: config?.fillGradient ? barGradient(color, orient) : color,
         // WCAG 1.4.11: stroke meets 3:1 against the light background.
-        borderColor: accessibleStroke(index, theme),
+        borderColor: accessibleStroke(index, theme, "#FFFFFF", palette),
         borderWidth: 1,
         ...(isSelected || isHovered
           ? {
@@ -112,7 +117,7 @@ export function createFunnelOption(
       type: "funnel",
       id: "funnel-stages",
       sort,
-      orient: config?.orientation ?? "vertical",
+      orient,
       minSize: `${config?.minSize ?? 0}%`,
       maxSize: `${config?.maxSize ?? 100}%`,
       gap,

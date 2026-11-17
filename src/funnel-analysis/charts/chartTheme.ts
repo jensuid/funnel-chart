@@ -1,4 +1,4 @@
-import type { FunnelAnalysisTheme } from "../types/api.types";
+import type { FunnelAnalysisTheme, FunnelChartConfig } from "../types/api.types";
 
 /**
  * Design tokens + default palette.
@@ -56,11 +56,108 @@ export function resolveTheme(theme?: FunnelAnalysisTheme): ThemeTokens {
 }
 
 /** Stage color by 0-based index; repeats palette for longer funnels. */
-export function stageColor(index: number, theme?: FunnelAnalysisTheme): string {
-  const palette = theme?.stageColors ?? DEFAULT_STAGE_COLORS;
-  const i = ((index % palette.length) + palette.length) % palette.length;
-  const color = palette[i];
-  return color ?? DEFAULT_STAGE_COLORS[0]!;
+export function stageColor(
+  index: number,
+  theme?: FunnelAnalysisTheme,
+  palette?: string[],
+): string {
+  const p = palette ?? theme?.stageColors ?? DEFAULT_STAGE_COLORS;
+  const i = ((index % p.length) + p.length) % p.length;
+  return p[i] ?? DEFAULT_STAGE_COLORS[0]!;
+}
+
+// ---------------------------------------------------------------------------
+// Color customization: interpolation, monochrome ramps, effective palette
+// ---------------------------------------------------------------------------
+
+function hexToRgb(hex: string): [number, number, number] {
+  const c = hex.replace("#", "");
+  const full =
+    c.length === 3
+      ? c
+          .split("")
+          .map((ch) => ch + ch)
+          .join("")
+      : c;
+  return [
+    parseInt(full.slice(0, 2), 16),
+    parseInt(full.slice(2, 4), 16),
+    parseInt(full.slice(4, 6), 16),
+  ];
+}
+
+/** Linear interpolation between two hex colors (t=0 → a, t=1 → b). */
+export function interpolateColor(a: string, b: string, t: number): string {
+  const [r1, g1, b1] = hexToRgb(a);
+  const [r2, g2, b2] = hexToRgb(b);
+  const clamp = (v: number): number => Math.max(0, Math.min(255, Math.round(v)));
+  const ch = [r1 + (r2 - r1) * t, g1 + (g2 - g1) * t, b1 + (b2 - b1) * t].map(clamp);
+  return `#${ch.map((v) => (v as number).toString(16).padStart(2, "0")).join("")}`;
+}
+
+/**
+ * Monochrome ramp — one base color swept from a light tint through the base
+ * itself to a darker shade. Ideal for funnels: the gradient reinforces the
+ * stage progression without requiring the caller to hand-pick N colors.
+ */
+export function monochromeRamp(baseColor: string, steps: number): string[] {
+  if (steps <= 1) return [baseColor];
+  const light = interpolateColor(baseColor, "#FFFFFF", 0.78);
+  const dark = interpolateColor(baseColor, "#000000", 0.35);
+  return Array.from({ length: steps }, (_, i) => {
+    const t = i / (steps - 1);
+    return t <= 0.5
+      ? interpolateColor(light, baseColor, t * 2)
+      : interpolateColor(baseColor, dark, (t - 0.5) * 2);
+  });
+}
+
+/**
+ * Effective stage palette — single source of truth for funnel fill, trend
+ * lines and transition colors (D2). Priority:
+ *   ramp mode (colorMode + baseColor)  >  funnel.colorPalette  >
+ *   theme.stageColors  >  DEFAULT_STAGE_COLORS.
+ */
+export function resolveStagePalette(
+  stageCount: number,
+  theme?: FunnelAnalysisTheme,
+  funnel?: Pick<FunnelChartConfig, "colorPalette" | "colorMode" | "baseColor">,
+): string[] {
+  if (funnel?.colorMode === "ramp" && funnel.baseColor) {
+    return monochromeRamp(funnel.baseColor, Math.max(1, stageCount));
+  }
+  return funnel?.colorPalette ?? theme?.stageColors ?? [...DEFAULT_STAGE_COLORS];
+}
+
+/** WCAG 1.4.11: per-bar linear gradient (stage color → lighter variant). */
+export function barGradient(
+  color: string,
+  orient: "vertical" | "horizontal",
+): Record<string, unknown> {
+  const lighter = interpolateColor(color, "#FFFFFF", 0.45);
+  return orient === "vertical"
+    ? {
+        type: "linear",
+        x: 0,
+        y: 0,
+        x2: 0,
+        y2: 1,
+        colorStops: [
+          { offset: 0, color },
+          { offset: 1, color: lighter },
+        ],
+      }
+    : {
+        type: "linear",
+        x: 0,
+        y: 0,
+        x2: 1,
+        y2: 0,
+        colorStops: [
+          { offset: 0, color },
+          { offset: 1, color: lighter },
+        ],
+      };
 }
 
 /** Blend a hex color toward black by `amount` (0..1). */
@@ -100,8 +197,9 @@ export function accessibleStroke(
   index: number,
   theme?: FunnelAnalysisTheme,
   background = "#FFFFFF",
+  palette?: string[],
 ): string {
-  const base = stageColor(index, theme);
+  const base = stageColor(index, theme, palette);
   let amount = 0;
   let color = base;
   while (amount <= 0.6 && contrastRatio(color, background) < 3) {
@@ -118,6 +216,7 @@ export function accessibleStroke(
 export function transitionColor(
   toStageIndex: number,
   theme?: FunnelAnalysisTheme,
+  palette?: string[],
 ): string {
-  return stageColor(toStageIndex, theme);
+  return stageColor(toStageIndex, theme, palette);
 }
