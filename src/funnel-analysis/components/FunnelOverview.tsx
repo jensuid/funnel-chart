@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FunnelStageViewModel } from "../types/funnelAnalysis.types";
 import type {
   FunnelAnalysisTheme,
@@ -35,6 +35,23 @@ export function FunnelOverview({
   showDropOff = true,
   animation = true,
 }: FunnelOverviewProps) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  // Measured chart-frame size — drives band-aware label tiering.
+  const [frameSize, setFrameSize] = useState<{ w?: number; h?: number }>({});
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+    const measure = () =>
+      setFrameSize({
+        w: el.clientWidth || undefined,
+        h: el.clientHeight || undefined,
+      });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const option = useMemo(
     () =>
       createFunnelOption({
@@ -48,14 +65,16 @@ export function FunnelOverview({
         showValues: showStageLabels,
         showDropOffIndicators: showDropOff,
         animation,
+        containerHeight: frameSize.h,
+        containerWidth: frameSize.w,
       }),
-    [stages, selectedStageIds, interaction, theme, stagePalette, config, showStageLabels, showCumulativeConversion, showDropOff, animation],
+    [stages, selectedStageIds, interaction, theme, stagePalette, config, showStageLabels, showCumulativeConversion, showDropOff, animation, frameSize],
   );
 
   return (
     <section className="fa-panel fa-funnel-panel" aria-label="Funnel overview">
       <h3>Funnel Overview</h3>
-      <div className="fa-chart-frame">
+      <div className="fa-chart-frame" ref={frameRef}>
         <EChartsWrapper
           option={option}
           onEvents={interaction.chartHandlers}

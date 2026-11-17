@@ -228,9 +228,10 @@ describe("createFunnelOption — label placement", () => {
       takeoverText: "Purchase\n7.0%",
     };
     expect(formatter({ data: purchaseDatum })).toBe("Purchase\n7.0%");
-    // cart keeps its drop-off metrics.
+    // cart keeps its drop-off metric (short form — conversion already shown
+    // by the main inside label).
     const cartDatum = { stageId: "cart", incomingConversion: 50, incomingDropOff: 50 };
-    expect(formatter({ data: cartDatum })).toContain("drop-off");
+    expect(formatter({ data: cartDatum })).toBe("↓ 50.0%");
   });
 
   it("overlay uses custom stagger layout (stacked default)", () => {
@@ -278,7 +279,10 @@ describe("createFunnelOption — label placement", () => {
     }) as { series: Record<string, unknown>[] };
     const overlay2 = option2.series.find((s) => s.id === "funnel-transition-labels")!;
     const data2 = overlay2.data as { label?: { show: boolean } }[];
-    expect(data2.every((d) => d.label!.show)).toBe(true);
+    // First stage has no incoming transition → no label at all (an empty
+    // label would still draw a stray leader line).
+    expect(data2[0]!.label!.show).toBe(false);
+    expect(data2.slice(1).every((d) => d.label!.show)).toBe(true);
   });
 });
 
@@ -314,13 +318,16 @@ describe("createOutsideLabelLayout (vertical funnel stagger)", () => {
     expect(r1.y).toBe(20); // own bar center
     expect(r2.y).toBe(60); // bands 40px apart, 20px labels → no push needed
     expect(r3.y).toBe(100);
-    // With tighter bands the cascade guarantees the min gap:
+    // With tighter bands the cascade guarantees the min gap for non-last
+    // labels:
     const tight = createOutsideLabelLayout(data, { leaderLength: 24, minGap: 20 });
     const t1 = tight({ dataIndex: 0, rect: { x: 0, y: 0, width: 200, height: 12 } })!;
     const t2 = tight({ dataIndex: 1, rect: { x: 90, y: 12, width: 20, height: 12 } })!;
-    const t3 = tight({ dataIndex: 2, rect: { x: 99, y: 24, width: 2, height: 12 } })!;
     expect((t2.y as number) - (t1.y as number)).toBeGreaterThanOrEqual(20);
-    expect((t3.y as number) - (t2.y as number)).toBeGreaterThanOrEqual(20);
+    // The LAST label is clamped to the funnel bottom (+6px slack) — slight
+    // overlap beats being clipped out of the chart.
+    const t3 = tight({ dataIndex: 2, rect: { x: 99, y: 24, width: 2, height: 12 } })!;
+    expect(t3.y).toBe(24 + 12 + 6);
   });
 
   it("emits a straight leader when level with the bar, bent when cascaded", () => {
@@ -333,13 +340,89 @@ describe("createOutsideLabelLayout (vertical funnel stagger)", () => {
     expect((t2.labelLinePoints as number[][]).length).toBe(3); // cascaded → bent
   });
 
-  it("resets the cascade on each new layout pass", () => {
-    const fresh = createOutsideLabelLayout(data, { leaderLength: 24, minGap: 20 });
+  it("resets the cascade on each new layout pass", () => {    const fresh = createOutsideLabelLayout(data, { leaderLength: 24, minGap: 20 });
     const firstPass = [0, 1, 2].map((i) => fresh({ dataIndex: i, rect: rects[i] })!);
     // Second pass (ECharts re-layouts on animation/resize): same results.
     const secondPass = [0, 1, 2].map((i) => fresh({ dataIndex: i, rect: rects[i] })!);
     expect(secondPass.map((r) => r.y)).toEqual(firstPass.map((r) => r.y));
     expect(secondPass.map((r) => r.x)).toEqual(firstPass.map((r) => r.x));
+  });
+
+  describe("horizontal orientation", () => {
+    // Bands side by side along x; heights ∝ value; centered on y=100.
+    const hRects = [
+      { x: 0, y: 0, width: 40, height: 200 },
+      { x: 40, y: 40, width: 40, height: 120 },
+      { x: 80, y: 70, width: 40, height: 60 },
+    ];
+    const hLayout = () =>
+      createOutsideLabelLayout(data, {
+        leaderLength: 24,
+        minGap: 20,
+        orient: "horizontal",
+        fallbackLabelWidth: 60,
+      });
+
+    it("anchors labels above each band's top edge, clamped inside the canvas", () => {
+      const fresh = hLayout();
+      const r1 = fresh({ dataIndex: 0, rect: hRects[0] })!;
+      // y clamped: band top 0 - leader 24 would put the label off-canvas;
+      // it shortens to fallbackLabelHeight + 2 = 22 instead.
+      expect(r1.y).toBe(22);
+      // x clamped right so the 60px-wide label stays inside the plot's left
+      // edge (band center 20 - 30 would clip).
+      expect(r1.x).toBe(32);
+      expect(r1.verticalAlign).toBe("bottom");
+    });
+
+    it("cascades rightward with a guaranteed gap when labels collide", () => {
+      const fresh = hLayout();
+      const r1 = fresh({ dataIndex: 0, rect: hRects[0] })!;
+      const r2 = fresh({ dataIndex: 1, rect: hRects[1] })!;
+      const r3 = fresh({ dataIndex: 2, rect: hRects[2] })!;
+      // Band centers are 40px apart; labels 60px wide → collisions.
+      expect((r2.x as number) - (r1.x as number)).toBeGreaterThanOrEqual(20);
+      expect((r3.x as number) - (r2.x as number)).toBeGreaterThanOrEqual(20);
+      // y: clamped to 22 near the top, natural (70 - 24) further down.
+      expect(r2.y).toBe(22);
+      expect(r3.y).toBe(46);
+    });
+
+    it("clamps the rightmost label inside the plot's right edge", () => {
+      const fresh = hLayout();
+      fresh({ dataIndex: 0, rect: hRects[0] });
+      fresh({ dataIndex: 1, rect: hRects[1] });
+      // Band 2: center x=100, width 40, relative = 10/1000 = 1% →
+      // plotRight = 100 + 20/0.01 = 2100 (huge) — use a wider band instead:
+      const fresh2 = createOutsideLabelLayout(data, {
+        leaderLength: 24,
+        minGap: 20,
+        orient: "horizontal",
+        fallbackLabelWidth: 60,
+      });
+      const wide = { x: 80, y: 70, width: 400, height: 60 }; // relative 40%
+      const r3 = fresh2({ dataIndex: 2, rect: wide })!;
+      // plotRight = 280 + 200 = 480 → maxCenter = 480 - 30 - 2 = 448.
+      expect(r3.x as number).toBeLessThanOrEqual(448);
+    });
+  });
+
+  it("clamps vertical leader length so wide-bar labels stay inside the plot", () => {
+    const wideData = [
+      { stageId: "a", name: "A", value: 1000, incomingConversion: null, incomingDropOff: null, itemStyle: { color: "transparent" } },
+      { stageId: "b", name: "B", value: 740, incomingConversion: 74, incomingDropOff: 26, itemStyle: { color: "transparent" } },
+    ];
+    const layout = createOutsideLabelLayout(wideData, {
+      leaderLength: 24,
+      minGap: 20,
+      fontSize: 11,
+      estimateWidth: () => "↓ 26.0%".length * 11 * 0.58,
+    });
+    // Bar at 74% relative width: rect {x:65, width:370} → center 250,
+    // plotRight = 250 + 185/0.74 = 500. barEdge = 435; text "↓ 26.0%"
+    // ≈ 44.7px → maxLabelLeft = 453.3 → leader = 18.3 (clamped from 24).
+    const r = layout({ dataIndex: 1, rect: { x: 65, y: 40, width: 370, height: 40 } })!;
+    expect(r.x).toBeCloseTo(453.3, 0);
   });
 
   it("leaves hidden/empty labels untouched", () => {

@@ -31,6 +31,14 @@ export interface FunnelStageDatum {
   };
 }
 
+/**
+ * Fixed inset (px) between the funnel bounds and the chart frame. Explicit
+ * insets keep the funnel geometry deterministic — ECharts' funnel defaults
+ * reserve ~60px top/bottom, wasting panel space and shrinking bands until
+ * inside labels no longer fit.
+ */
+export const FUNNEL_INSET = 12;
+
 export interface CreateFunnelOptionInput {
   stages: FunnelStageViewModel[];
   /** Stages to emphasize: selected stage, or both stages of a selected transition. */
@@ -46,6 +54,19 @@ export interface CreateFunnelOptionInput {
   showDropOffIndicators?: boolean;
   animation?: boolean;
   animationDurationMs?: number;
+  /**
+   * Measured chart-frame height (px). Enables band-height-aware label
+   * tiering: when bands are too short for a 3-line label, lines are dropped
+   * so hideOverlap never has to REMOVE a whole label. Undefined → assume
+   * bands are tall enough (legacy behavior).
+   */
+  containerHeight?: number;
+  /**
+   * Measured chart-frame width (px). For horizontal funnels: decides whether
+   * inside labels fit their band's width (else they move outside) and
+   * whether outside labels need alternating above/below rows.
+   */
+  containerWidth?: number;
 }
 
 export function formatCount(count: number): string {
@@ -71,6 +92,8 @@ export function createFunnelOption(
     showDropOffIndicators = true,
     animation = true,
     animationDurationMs = 300,
+    containerHeight,
+    containerWidth,
   } = input;
 
   const tokens = resolveTheme(theme);
@@ -133,27 +156,51 @@ export function createFunnelOption(
   for (let index = 0; index < data.length; index++) {
     const vm = stages[index]!;
     const relativeWidth = (vm.count / maxValue) * 100;
-    const narrow = labelStrategy === "auto" && relativeWidth < outsideThreshold;
-    if (narrow) outsideStageIds.add(vm.stage.id);
     // Tiered content: narrow bars drop the count line first (it is visually
     // redundant with bar width) to reduce crowding in dense funnels.
     const compact =
       labelStrategy === "auto" && relativeWidth < (config?.compactLabelThreshold ?? 25);
-    // Dense funnels (>8 stages): each band is too short for a multi-line
-    // label — it would spill into neighbouring bands. Collapse to one line.
-    const dense = stages.length > 8;
+    // Band-height-aware tiering (VERTICAL only): with a measured container
+    // we can compute each band's height exactly (fixed FUNNEL_INSET layout)
+    // and collapse lines BEFORE hideOverlap would drop whole labels.
+    const bandHeight =
+      containerHeight && orient === "vertical"
+        ? (containerHeight - 2 * FUNNEL_INSET - gap * (stages.length - 1)) /
+          stages.length
+        : undefined;
+    // Horizontal: bands stack along the WIDTH axis — a band fits its inside
+    // label only if the band's x-extent exceeds the rendered text width.
+    const bandExtent =
+      containerWidth && orient === "horizontal"
+        ? (containerWidth - 2 * FUNNEL_INSET - gap * (stages.length - 1)) /
+          stages.length
+        : undefined;
+    // Dense funnels (>8 stages or bands under ~32px): each band is too short
+    // for a multi-line label — collapse to one line.
+    const dense = stages.length > 8 || (bandHeight !== undefined && bandHeight < 32);
     const lines: string[] = dense
       ? [`${vm.stage.label} · ${formatPercent(vm.cumulativeConversion)}`]
       : [vm.stage.label];
     if (!dense) {
-      if (showValues && !compact) lines.push(formatCount(vm.count));
+      // Bands under ~46px cannot fit 3 lines — drop the count line first.
+      const dropCount = bandHeight !== undefined && bandHeight < 46;
+      if (showValues && !compact && !dropCount) lines.push(formatCount(vm.count));
       if (showCumulativeConversion) lines.push(formatPercent(vm.cumulativeConversion));
     }
     const labelText = lines.join("\n");
     stageLabelText.set(vm.stage.id, labelText);
     data[index]!.labelText = labelText;
     // Outside slot: single line keeps staggered labels compact.
-    stageOutsideText.set(vm.stage.id, lines.join(" · "));
+    const outsideText = lines.join(" · ");
+    stageOutsideText.set(vm.stage.id, outsideText);
+    // Narrow decision. Vertical: relative width vs threshold. Horizontal:
+    // ABSOLUTE fit — the band's x-extent must hold the rendered text.
+    const narrow =
+      labelStrategy === "auto" &&
+      (bandExtent !== undefined
+        ? outsideText.length * 12 * 0.58 > bandExtent
+        : relativeWidth < outsideThreshold);
+    if (narrow) outsideStageIds.add(vm.stage.id);
     (data[index]!.label as Record<string, unknown>) = {
       // Narrow bars: hide on the main series — the overlay carries the
       // label outside (staggered, with bent leader lines).
@@ -185,6 +232,14 @@ export function createFunnelOption(
       minSize: `${config?.minSize ?? 0}%`,
       maxSize: `${config?.maxSize ?? 100}%`,
       gap,
+      // Explicit layout: ECharts funnel defaults reserve a large fixed
+      // top/bottom padding (~60px each), wasting panel space and shrinking
+      // bands until inside labels no longer fit. Fixed insets keep the
+      // geometry deterministic (band height is computable for label
+      // tiering) and use the panel properly.
+      ...(orient === "vertical"
+        ? { top: FUNNEL_INSET, bottom: FUNNEL_INSET, left: "center", width: "92%" }
+        : { left: FUNNEL_INSET, right: FUNNEL_INSET, top: "middle", height: "80%" }),
       // Funnel width represents VOLUME (spec §2) — never conversion rates.
       data,
       label: {
@@ -195,7 +250,9 @@ export function createFunnelOption(
         color: configuredPosition === "outside" ? tokens.textColor : "#FFFFFF",
         fontFamily: tokens.fontFamily,
         fontSize: 12,
-        lineHeight: 16,
+        // 14px line height keeps 3-line labels inside ~50px bands without
+        // triggering hideOverlap (which would DROP whole labels).
+        lineHeight: 14,
         formatter: (params: { data?: unknown }) =>
           (params.data as FunnelStageDatum | undefined)?.labelText ?? "",
       },
@@ -245,6 +302,7 @@ export function createFunnelOption(
                 .map((s) => [s.stage.id, stageOutsideText.get(s.stage.id) ?? ""]),
             )
           : undefined,
+        containerWidth,
         stacked: stackedOutside,
         outsideLabelGap: config?.outsideLabelGap ?? 8,
         /** Crowding guard: hide overlay labels on dense funnels. */

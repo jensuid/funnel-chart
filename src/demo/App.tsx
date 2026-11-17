@@ -69,7 +69,9 @@ export function App() {
   const [loading, setLoading] = useState(false);
 
   // --- funnel chart ---------------------------------------------------------
-  const [orientation, setOrientation] = useState<"vertical" | "horizontal">("vertical");
+  const [orientation, setOrientation] = useState<"vertical" | "horizontal">(
+    params.orient === "horizontal" ? "horizontal" : "vertical",
+  );
   const [sort, setSort] = useState<"descending" | "ascending" | "none">("descending");
   const [gap, setGap] = useState(5);
   const [minSize, setMinSize] = useState(0);
