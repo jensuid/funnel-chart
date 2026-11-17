@@ -71,4 +71,5 @@ setiap `pnpm publish`.
 | [docs/INTERACTION-SPEC.md](docs/INTERACTION-SPEC.md) | Seleksi, hover, visibility, filter, mutual exclusivity |
 | [docs/ECHARTS-CONFIG.md](docs/ECHARTS-CONFIG.md) | Opsi ECharts, tema, stroke a11y |
 | [docs/TEST-SPEC.md](docs/TEST-SPEC.md) | Strategi test, 10 skenario visual regression |
+| [docs/PUBLISHING.md](docs/PUBLISHING.md) | Panduan publish ke npm (langkah, rollback, troubleshooting) |
 | [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) | WP-01…WP-08 dan status gate |
