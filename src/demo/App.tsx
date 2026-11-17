@@ -75,6 +75,8 @@ export function App() {
   const [minSize, setMinSize] = useState(0);
   const [maxSize, setMaxSize] = useState(100);
   const [labelPosition, setLabelPosition] = useState<"inside" | "outside">("inside");
+  const [labelStrategy, setLabelStrategy] = useState<"auto" | "fixed">("auto");
+  const [labelOutsideThreshold, setLabelOutsideThreshold] = useState(15);
   const [showValues, setShowValues] = useState(true);
   const [showPercentages, setShowPercentages] = useState(true);
   const [showDropOffIndicators, setShowDropOffIndicators] = useState(true);
@@ -151,6 +153,8 @@ export function App() {
       minSize,
       maxSize,
       labelPosition,
+      labelStrategy,
+      labelOutsideThreshold,
       showValues,
       showPercentages,
       showDropOffIndicators,
@@ -234,6 +238,10 @@ export function App() {
           <Num label="minSize (%)" value={minSize} onChange={setMinSize} min={0} max={100} />
           <Num label="maxSize (%)" value={maxSize} onChange={setMaxSize} min={0} max={100} />
           <Choice label="labelPosition" value={labelPosition} options={["inside", "outside"] as const} onChange={setLabelPosition} />
+          <Choice label="labelStrategy" value={labelStrategy} options={["auto", "fixed"] as const} onChange={setLabelStrategy} />
+          {labelStrategy === "auto" && (
+            <Num label="labelOutsideThreshold (%)" value={labelOutsideThreshold} onChange={setLabelOutsideThreshold} min={0} max={100} />
+          )}
           <Toggle label="showValues" value={showValues} onChange={setShowValues} />
           <Toggle label="showPercentages" value={showPercentages} onChange={setShowPercentages} />
           <Toggle label="showDropOffIndicators" value={showDropOffIndicators} onChange={setShowDropOffIndicators} />

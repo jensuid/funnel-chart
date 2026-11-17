@@ -11,6 +11,17 @@ init dengan `{ renderer: "svg" }`. SVG dipilih demi ketajaman teks dan a11y.
   `gap`, `minSize`/`maxSize` dari config. **Lebar bar = volume**, bukan rate.
 - Label (D3): dari view model datum — `name`, count terformat, cumulative % —
   via `formatter`, bukan template `{b}\n{c}`.
+- **Penempatan label** — `labelStrategy`:
+  - `"auto"` (default): bar yang lebarnya < `labelOutsideThreshold`% (default 15)
+    dari bar terlebar otomatis pindah labelnya ke LUAR (terbaca di background);
+    sisanya tetap di dalam. Warna label dalam kontras-aware
+    (`readableTextColor`) — teks gelap di atas fill terang (mis. ujung light
+    dari monochrome ramp), putih di atas fill gelap.
+  - `"fixed"`: semua label mengikuti `labelPosition` apa adanya.
+  - Label `outside` selalu memakai `tokens.textColor` (bukan putih — bug lama:
+    label putih tak terlihat di background putih).
+  - Anti-tabrakan: saat label stage pindah ke luar, label drop-off overlay di
+    stage yang sama dikosongkan (info tetap ada di tooltip & data table).
 - Drop-off indicators (D3): series funnel kedua **transparan** dengan layout
   identik (sort/orient/min/max/gap) hanya untuk label luar.
 - `itemStyle`: fill = warna stage brand; `borderColor = accessibleStroke(...)`

@@ -129,6 +129,19 @@ export function resolveStagePalette(
   return funnel?.colorPalette ?? theme?.stageColors ?? [...DEFAULT_STAGE_COLORS];
 }
 
+/**
+ * Readable text color on a given background — picks white or near-black,
+ * whichever has the higher WCAG contrast. Needed for inside labels on
+ * light fills (e.g. the light end of a monochrome ramp).
+ */
+export function readableTextColor(
+  bg: string,
+  dark = "#111827",
+  light = "#FFFFFF",
+): string {
+  return contrastRatio(light, bg) >= contrastRatio(dark, bg) ? light : dark;
+}
+
 /** WCAG 1.4.11: per-bar linear gradient (stage color → lighter variant). */
 export function barGradient(
   color: string,

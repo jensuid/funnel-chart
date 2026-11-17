@@ -142,6 +142,60 @@ describe("buildTransitionLabelSeries", () => {
   });
 });
 
+describe("createFunnelOption — label placement", () => {
+  it("outside labelPosition uses text color, not white (bug: invisible on white bg)", () => {
+    const option = buildOption({
+      config: { labelPosition: "outside" },
+    }) as { series: Record<string, unknown>[] };
+    const main = option.series.find((s) => s.id === "funnel-stages")!;
+    const label = main.label as { color: string };
+    expect(label.color).toBe("#111827"); // light theme textColor
+  });
+
+  it("auto strategy moves narrow bars' labels outside, keeps wide bars inside", () => {
+    const option = buildOption({}) as { series: Record<string, unknown>[] };
+    const main = option.series.find((s) => s.id === "funnel-stages")!;
+    const data = main.data as { id: string; label?: { position: string } }[];
+    // Counts 1000/700/350/175/70 → widths 100/70/35/17.5/7% of widest.
+    // Default threshold 15 → only "purchase" (7%) moves outside.
+    expect(data.find((d) => d.id === "visitors")!.label!.position).toBe("inside");
+    expect(data.find((d) => d.id === "purchase")!.label!.position).toBe("outside");
+  });
+
+  it("fixed strategy keeps every label at the configured position", () => {
+    const option = buildOption({
+      config: { labelStrategy: "fixed", labelPosition: "inside" },
+    }) as { series: Record<string, unknown>[] };
+    const main = option.series.find((s) => s.id === "funnel-stages")!;
+    const data = main.data as { label?: { position: string } }[];
+    expect(data.every((d) => d.label!.position === "inside")).toBe(true);
+  });
+
+  it("inside label color is contrast-aware (dark text on light ramp fills)", () => {
+    const option = buildOption({
+      config: { colorMode: "ramp", baseColor: "#3B82F6", labelStrategy: "fixed" },
+    }) as { series: Record<string, unknown>[] };
+    const main = option.series.find((s) => s.id === "funnel-stages")!;
+    const data = main.data as { label?: { color: string } }[];
+    // Lightest ramp fill (first stage) → dark text.
+    expect(data[0]!.label!.color).toBe("#111827");
+  });
+
+  it("overlay labels are blanked where the stage label moved outside", () => {
+    const option = buildOption({}) as {
+      series: Record<string, unknown>[];
+    };
+    const overlay = option.series.find(
+      (s) => s.id === "funnel-transition-labels",
+    )!;
+    const formatter = (overlay.label as { formatter: (p: { data?: unknown }) => string }).formatter;
+    const purchaseDatum = { stageId: "purchase", incomingConversion: 40, incomingDropOff: 60 };
+    const cartDatum = { stageId: "cart", incomingConversion: 50, incomingDropOff: 50 };
+    expect(formatter({ data: purchaseDatum })).toBe(""); // purchase label is outside
+    expect(formatter({ data: cartDatum })).not.toBe("");
+  });
+});
+
 describe("chartTheme palette (D2)", () => {
   it("stage colors follow the default palette", () => {
     expect(stageColor(0)).toBe("#3B82F6");

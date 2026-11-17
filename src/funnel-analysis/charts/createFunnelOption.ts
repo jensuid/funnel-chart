@@ -1,7 +1,7 @@
 import type { FunnelStageViewModel } from "../types/funnelAnalysis.types";
 import type { FunnelChartConfig, FunnelAnalysisTheme } from "../types/api.types";
 import type { EChartsCoreOption } from "./echartsSetup";
-import { resolveTheme, stageColor, accessibleStroke, resolveStagePalette, barGradient } from "./chartTheme";
+import { resolveTheme, stageColor, accessibleStroke, resolveStagePalette, barGradient, readableTextColor } from "./chartTheme";
 import { buildTransitionLabelSeries } from "./dropOffIndicators";
 
 /**
@@ -20,6 +20,8 @@ export interface FunnelStageDatum {
   stageToStageConversion: number | null;
   dropOff: number | null;
   selected: boolean;
+  /** Per-datum label overrides (auto placement / contrast-aware color). */
+  label?: Record<string, unknown>;
   itemStyle: {
     color: string | Record<string, unknown>;
     borderColor?: string;
@@ -112,6 +114,39 @@ export function createFunnelOption(
     return lines.join("\n");
   };
 
+  // --- label placement (auto strategy) -------------------------------------
+  // "auto": bars narrower than `labelOutsideThreshold`% of the widest bar
+  // get their label moved OUTSIDE (readable on the background); the rest
+  // keep the configured inside position. "fixed" always uses labelPosition.
+  const labelStrategy = config?.labelStrategy ?? "auto";
+  const outsideThreshold = config?.labelOutsideThreshold ?? 15;
+  const configuredPosition = config?.labelPosition ?? "inside";
+  const maxValue = Math.max(...stages.map((s) => s.count), 1);
+  /** Stage ids whose label lives OUTSIDE — overlay labels blanked there. */
+  const outsideStageIds = new Set<string>();
+
+  for (let index = 0; index < data.length; index++) {
+    const vm = stages[index]!;
+    const relativeWidth = (vm.count / maxValue) * 100;
+    const narrow = relativeWidth < outsideThreshold;
+    const position =
+      labelStrategy === "auto" && narrow ? "outside" : configuredPosition;
+    if (position === "outside") outsideStageIds.add(vm.stage.id);
+    (data[index]!.label as Record<string, unknown>) = {
+      position,
+      // Outside → text color (visible on the background). Inside →
+      // contrast-aware white/dark against the bar's own fill.
+      color:
+        position === "outside"
+          ? tokens.textColor
+          : readableTextColor(
+              typeof data[index]!.itemStyle.color === "string"
+                ? (data[index]!.itemStyle.color as string)
+                : stageColor(index, theme, palette),
+            ),
+    };
+  }
+
   const series: Record<string, unknown>[] = [
     {
       type: "funnel",
@@ -125,8 +160,10 @@ export function createFunnelOption(
       data,
       label: {
         show: true,
-        position: config?.labelPosition ?? "inside",
-        color: "#FFFFFF",
+        position: configuredPosition,
+        // Outside → text color (visible on the background); inside → white
+        // on colored fills (per-datum overrides refine this in auto mode).
+        color: configuredPosition === "outside" ? tokens.textColor : "#FFFFFF",
         fontFamily: tokens.fontFamily,
         fontSize: 12,
         lineHeight: 16,
@@ -152,10 +189,12 @@ export function createFunnelOption(
         tokens,
         fontFamily: tokens.fontFamily,
         sort,
-        orient: config?.orientation ?? "vertical",
+        orient,
         minSize: config?.minSize ?? 0,
         maxSize: config?.maxSize ?? 100,
         gap,
+        /** Blank overlay labels where the stage label moved outside. */
+        hiddenStageIds: outsideStageIds,
       }),
     );
   }

@@ -34,12 +34,14 @@ export interface BuildTransitionLabelSeriesInput {
   minSize: number;
   maxSize: number;
   gap: number;
+  /** Stage ids whose own label moved outside — overlay labels blanked. */
+  hiddenStageIds?: Set<string>;
 }
 
 export function buildTransitionLabelSeries(
   input: BuildTransitionLabelSeriesInput,
 ): Record<string, unknown> {
-  const { stages, tokens, fontFamily, sort, orient, minSize, maxSize, gap } = input;
+  const { stages, tokens, fontFamily, sort, orient, minSize, maxSize, gap, hiddenStageIds } = input;
 
   const data: TransitionLabelDatum[] = stages.map((vm, index) => {
     const incoming =
@@ -63,6 +65,8 @@ export function buildTransitionLabelSeries(
     if (d.incomingConversion === null && d.incomingDropOff === null) {
       return ""; // first stage has no incoming transition
     }
+    // Anti-collision: the stage's own label occupies the outside slot.
+    if (hiddenStageIds?.has(d.stageId)) return "";
     const parts = [
       `→ ${formatPercent(d.incomingConversion)}`,
       `↓ ${formatPercent(d.incomingDropOff)} drop-off`,

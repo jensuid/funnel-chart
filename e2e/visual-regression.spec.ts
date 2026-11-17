@@ -26,8 +26,9 @@ for (const { id, url, hover } of SCENARIOS) {
   test(`visual: ${id}`, async ({ page }) => {
     await page.goto(url);
     await expect(page.getByTestId("funnel-analysis")).toBeVisible();
-    // Let entrance animations settle before snapshotting.
-    await page.waitForTimeout(1200);
+    // Let entrance animations settle before snapshotting (durationMs 800
+    // + ECharts label layout pass; 1200ms proved flaky on slower runs).
+    await page.waitForTimeout(2500);
     if (hover) {
       // Real pointer hover over the funnel chart area → tooltip.
       await page

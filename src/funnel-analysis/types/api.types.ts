@@ -71,6 +71,10 @@ export interface FunnelChartConfig {
   minSize?: number;
   maxSize?: number;
   labelPosition?: "inside" | "outside";
+  /** "auto" (default) moves narrow bars' labels outside; "fixed" keeps labelPosition. */
+  labelStrategy?: "fixed" | "auto";
+  /** Bar narrower than this % of the widest bar → label outside (auto mode). */
+  labelOutsideThreshold?: number;
   showValues?: boolean;
   showPercentages?: boolean;
   showDropOffIndicators?: boolean;
