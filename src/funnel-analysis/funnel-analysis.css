@@ -1,0 +1,154 @@
+.funnel-analysis {
+  font-family: var(--fa-font-family, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  color: var(--fa-text-color, #111827);
+  background: var(--fa-background, #ffffff);
+  border-radius: 8px;
+}
+
+.fa-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.fa-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.fa-loading-badge {
+  font-size: 0.75rem;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.fa-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.fa-panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.fa-panel h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.fa-chart-frame {
+  height: 320px;
+}
+
+.fa-trend-frame {
+  height: 280px;
+}
+
+.fa-muted {
+  color: #6b7280;
+}
+
+/* Insights */
+.fa-insight-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fa-insight {
+  display: flex;
+  gap: 8px;
+  border-left: 3px solid #9ca3af;
+  padding: 6px 10px;
+  background: #f9fafb;
+  border-radius: 4px;
+}
+
+.fa-insight-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.fa-insight-desc {
+  font-size: 0.8125rem;
+  color: #4b5563;
+}
+
+/* States */
+.fa-state {
+  padding: 32px;
+  text-align: center;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+}
+
+.fa-error {
+  border-color: #ef4444;
+  color: #b91c1c;
+}
+
+.fa-warning-banner {
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.8125rem;
+}
+
+/* Data table (a11y fallback) */
+.fa-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  font-size: 0.875rem;
+}
+
+.fa-data-table th,
+.fa-data-table td {
+  border: 1px solid #e5e7eb;
+  padding: 6px 10px;
+  text-align: right;
+}
+
+.fa-data-table th:first-child,
+.fa-data-table td:first-child,
+.fa-data-table tbody th {
+  text-align: left;
+}
+
+/* Responsive: tablet — funnel above insights, trend below */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .fa-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Responsive: desktop — funnel + insights side-by-side, trend below */
+@media (min-width: 1025px) {
+  .fa-layout-default .fa-grid {
+    grid-template-columns: 3fr 2fr;
+  }
+  .fa-layout-default .fa-trend-panel,
+  .fa-layout-default .fa-trend-summary {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Mobile stays single column via the base rule. */
+
+@media (prefers-reduced-motion: reduce) {
+  .funnel-analysis * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
