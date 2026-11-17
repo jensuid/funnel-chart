@@ -14,7 +14,7 @@ import {
   incompleteFixture,
   largeFixture,
 } from "../../tests/fixtures";
-import { Section, Toggle, Num, Choice, Text, Row } from "./controls";
+import { Section, Toggle, Num, AutoNum, Choice, Text, Row } from "./controls";
 import { resolveStagePalette } from "../funnel-analysis/charts/chartTheme";
 
 /**
@@ -76,11 +76,12 @@ export function App() {
   const [maxSize, setMaxSize] = useState(100);
   const [labelPosition, setLabelPosition] = useState<"inside" | "outside">("inside");
   const [labelStrategy, setLabelStrategy] = useState<"auto" | "fixed">("auto");
-  const [labelOutsideThreshold, setLabelOutsideThreshold] = useState(15);
+  const [labelOutsideThreshold, setLabelOutsideThreshold] = useState<number | undefined>(undefined);
   const [compactLabelThreshold, setCompactLabelThreshold] = useState(25);
   const [dropOffLabelMaxStages, setDropOffLabelMaxStages] = useState(8);
   const [labelAutoScale, setLabelAutoScale] = useState(true);
   const [outsideLabelArrangement, setOutsideLabelArrangement] = useState<"stacked" | "aligned">("stacked");
+  const [outsideLabelGap, setOutsideLabelGap] = useState(8);
   const [showValues, setShowValues] = useState(true);
   const [showPercentages, setShowPercentages] = useState(true);
   const [showDropOffIndicators, setShowDropOffIndicators] = useState(true);
@@ -164,6 +165,7 @@ export function App() {
       dropOffLabelMaxStages,
       labelAutoScale,
       outsideLabelArrangement,
+      outsideLabelGap,
       showValues,
       showPercentages,
       showDropOffIndicators,
@@ -250,7 +252,7 @@ export function App() {
           <Choice label="labelPosition" value={labelPosition} options={["inside", "outside"] as const} onChange={setLabelPosition} />
           <Choice label="labelStrategy" value={labelStrategy} options={["auto", "fixed"] as const} onChange={setLabelStrategy} />
           {labelStrategy === "auto" && (
-            <Num label="labelOutsideThreshold (%)" value={labelOutsideThreshold} onChange={setLabelOutsideThreshold} min={0} max={100} />
+            <AutoNum label="labelOutsideThreshold (%)" value={labelOutsideThreshold} onChange={setLabelOutsideThreshold} min={0} max={100} />
           )}
           {labelStrategy === "auto" && (
             <Num label="compactLabelThreshold (%)" value={compactLabelThreshold} onChange={setCompactLabelThreshold} min={0} max={100} />
@@ -263,6 +265,9 @@ export function App() {
             options={["stacked", "aligned"] as const}
             onChange={setOutsideLabelArrangement}
           />
+          {outsideLabelArrangement === "stacked" && (
+            <Num label="outsideLabelGap (px)" value={outsideLabelGap} onChange={setOutsideLabelGap} min={0} max={20} />
+          )}
           <Toggle label="showValues" value={showValues} onChange={setShowValues} />
           <Toggle label="showPercentages" value={showPercentages} onChange={setShowPercentages} />
           <Toggle label="showDropOffIndicators" value={showDropOffIndicators} onChange={setShowDropOffIndicators} />

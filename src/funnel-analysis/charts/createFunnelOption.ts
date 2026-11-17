@@ -127,6 +127,8 @@ export function createFunnelOption(
   const outsideStageIds = new Set<string>();
   /** Precomputed label text per stage (tiered content in auto mode). */
   const stageLabelText = new Map<string, string>();
+  /** Single-line variant for the outside slot (compact, stagger-friendly). */
+  const stageOutsideText = new Map<string, string>();
 
   for (let index = 0; index < data.length; index++) {
     const vm = stages[index]!;
@@ -137,12 +139,21 @@ export function createFunnelOption(
     // redundant with bar width) to reduce crowding in dense funnels.
     const compact =
       labelStrategy === "auto" && relativeWidth < (config?.compactLabelThreshold ?? 25);
-    const lines = [vm.stage.label];
-    if (showValues && !compact) lines.push(formatCount(vm.count));
-    if (showCumulativeConversion) lines.push(formatPercent(vm.cumulativeConversion));
+    // Dense funnels (>8 stages): each band is too short for a multi-line
+    // label — it would spill into neighbouring bands. Collapse to one line.
+    const dense = stages.length > 8;
+    const lines: string[] = dense
+      ? [`${vm.stage.label} · ${formatPercent(vm.cumulativeConversion)}`]
+      : [vm.stage.label];
+    if (!dense) {
+      if (showValues && !compact) lines.push(formatCount(vm.count));
+      if (showCumulativeConversion) lines.push(formatPercent(vm.cumulativeConversion));
+    }
     const labelText = lines.join("\n");
     stageLabelText.set(vm.stage.id, labelText);
     data[index]!.labelText = labelText;
+    // Outside slot: single line keeps staggered labels compact.
+    stageOutsideText.set(vm.stage.id, lines.join(" · "));
     (data[index]!.label as Record<string, unknown>) = {
       // Narrow bars: hide on the main series — the overlay carries the
       // label outside (staggered, with bent leader lines).
@@ -198,8 +209,9 @@ export function createFunnelOption(
           : { hideOverlap: true },
       labelLine: {
         show: configuredPosition === "outside" && stackedOutside,
-        length: 10,
-        length2: 14,
+        // Long two-segment leaders keep labels well clear of the funnel.
+        length: 18,
+        length2: 28,
         lineStyle: { color: tokens.mutedTextColor, width: 1 },
       },
       emphasis: {
@@ -230,10 +242,11 @@ export function createFunnelOption(
           ? new Map(
               stages
                 .filter((s) => outsideStageIds.has(s.stage.id))
-                .map((s) => [s.stage.id, stageLabelText.get(s.stage.id) ?? ""]),
+                .map((s) => [s.stage.id, stageOutsideText.get(s.stage.id) ?? ""]),
             )
           : undefined,
         stacked: stackedOutside,
+        outsideLabelGap: config?.outsideLabelGap ?? 8,
         /** Crowding guard: hide overlay labels on dense funnels. */
         maxLabeledStages: config?.dropOffLabelMaxStages ?? 8,
       }),

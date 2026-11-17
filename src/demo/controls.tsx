@@ -77,6 +77,40 @@ export function Num({
   );
 }
 
+/** Numeric control where an empty value means "use the library default". */
+export function AutoNum({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+}: {
+  label: string;
+  value: number | undefined;
+  onChange: (v: number | undefined) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+}) {
+  return (
+    <Row label={label}>
+      <input
+        type="number"
+        value={value ?? ""}
+        placeholder="auto"
+        title="Empty = adaptive default"
+        min={min}
+        max={max}
+        step={step}
+        onChange={(e) =>
+          onChange(e.target.value === "" ? undefined : Number(e.target.value))
+        }
+      />
+    </Row>
+  );
+}
+
 export function Choice<T extends string>({
   label,
   value,

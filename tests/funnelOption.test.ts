@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createFunnelOption } from "../src/funnel-analysis/charts/createFunnelOption";
-import { buildTransitionLabelSeries } from "../src/funnel-analysis/charts/dropOffIndicators";
+import { buildTransitionLabelSeries, createOutsideLabelLayout } from "../src/funnel-analysis/charts/dropOffIndicators";
 import { resolveTheme, stageColor, transitionColor } from "../src/funnel-analysis/charts/chartTheme";
 import { computeStageViewModels } from "../src/funnel-analysis/metrics/calculateFunnelMetrics";
 import { standardFunnelFixture } from "./fixtures";
@@ -233,14 +233,14 @@ describe("createFunnelOption — label placement", () => {
     expect(formatter({ data: cartDatum })).toContain("drop-off");
   });
 
-  it("overlay uses staggered layout with bent leader lines (stacked default)", () => {
+  it("overlay uses custom stagger layout (stacked default)", () => {
     const option = buildOption({}) as { series: Record<string, unknown>[] };
     const main = option.series.find((s) => s.id === "funnel-stages")!;
     const overlay = option.series.find((s) => s.id === "funnel-transition-labels")!;
     // Main series (inside labels): plain hideOverlap.
     expect((main.labelLayout as { hideOverlap?: boolean }).hideOverlap).toBe(true);
-    // Overlay (outside labels): staggered with bent leader lines.
-    expect((overlay.labelLayout as { moveOverlap?: string }).moveOverlap).toBe("shiftY");
+    // Overlay (outside labels, vertical): custom stagger callback.
+    expect(typeof overlay.labelLayout).toBe("function");
     expect((overlay.labelLine as { show: boolean }).show).toBe(true);
     // "aligned" arrangement falls back to hideOverlap without leader lines.
     const option2 = buildOption({
@@ -279,6 +279,73 @@ describe("createFunnelOption — label placement", () => {
     const overlay2 = option2.series.find((s) => s.id === "funnel-transition-labels")!;
     const data2 = overlay2.data as { label?: { show: boolean } }[];
     expect(data2.every((d) => d.label!.show)).toBe(true);
+  });
+});
+
+describe("createOutsideLabelLayout (vertical funnel stagger)", () => {
+  const data = [
+    { stageId: "a", name: "A", value: 1000, incomingConversion: 90, incomingDropOff: 10, itemStyle: { color: "transparent" } },
+    { stageId: "b", name: "B", value: 100, incomingConversion: 10, incomingDropOff: 90, itemStyle: { color: "transparent" } },
+    { stageId: "c", name: "C", value: 10, incomingConversion: 10, incomingDropOff: 90, itemStyle: { color: "transparent" } },
+  ];
+  // Bars centered at x=100, stacked vertically, widths ∝ value.
+  const rects = [
+    { x: 0, y: 0, width: 200, height: 40 },
+    { x: 90, y: 40, width: 20, height: 40 },
+    { x: 99, y: 80, width: 2, height: 40 },
+  ];
+  const layout = createOutsideLabelLayout(data, { leaderLength: 24, minGap: 20 });
+
+  it("anchors labels just right of their own bar edge with a long leader", () => {
+    const r1 = layout({ dataIndex: 0, rect: rects[0] })!;
+    const r2 = layout({ dataIndex: 1, rect: rects[1] })!;
+    const r3 = layout({ dataIndex: 2, rect: rects[2] })!;
+    // x = own bar right edge + leaderLength (24).
+    expect(r1.x).toBe(224); // 200 + 24
+    expect(r2.x).toBe(134); // 110 + 24
+    expect(r3.x).toBe(125); // 101 + 24
+  });
+
+  it("cascades labels downward only when they would overlap", () => {
+    const fresh = createOutsideLabelLayout(data, { leaderLength: 24, minGap: 20 });
+    const r1 = fresh({ dataIndex: 0, rect: rects[0] })!;
+    const r2 = fresh({ dataIndex: 1, rect: rects[1] })!;
+    const r3 = fresh({ dataIndex: 2, rect: rects[2] })!;
+    expect(r1.y).toBe(20); // own bar center
+    expect(r2.y).toBe(60); // bands 40px apart, 20px labels → no push needed
+    expect(r3.y).toBe(100);
+    // With tighter bands the cascade guarantees the min gap:
+    const tight = createOutsideLabelLayout(data, { leaderLength: 24, minGap: 20 });
+    const t1 = tight({ dataIndex: 0, rect: { x: 0, y: 0, width: 200, height: 12 } })!;
+    const t2 = tight({ dataIndex: 1, rect: { x: 90, y: 12, width: 20, height: 12 } })!;
+    const t3 = tight({ dataIndex: 2, rect: { x: 99, y: 24, width: 2, height: 12 } })!;
+    expect((t2.y as number) - (t1.y as number)).toBeGreaterThanOrEqual(20);
+    expect((t3.y as number) - (t2.y as number)).toBeGreaterThanOrEqual(20);
+  });
+
+  it("emits a straight leader when level with the bar, bent when cascaded", () => {
+    const fresh = createOutsideLabelLayout(data, { leaderLength: 24, minGap: 20 });
+    const r2 = fresh({ dataIndex: 1, rect: rects[1] })!; // level → straight
+    expect((r2.labelLinePoints as number[][]).length).toBe(2);
+    const tight = createOutsideLabelLayout(data, { leaderLength: 24, minGap: 20 });
+    tight({ dataIndex: 0, rect: { x: 0, y: 0, width: 200, height: 12 } });
+    const t2 = tight({ dataIndex: 1, rect: { x: 90, y: 12, width: 20, height: 12 } })!;
+    expect((t2.labelLinePoints as number[][]).length).toBe(3); // cascaded → bent
+  });
+
+  it("resets the cascade on each new layout pass", () => {
+    const fresh = createOutsideLabelLayout(data, { leaderLength: 24, minGap: 20 });
+    const firstPass = [0, 1, 2].map((i) => fresh({ dataIndex: i, rect: rects[i] })!);
+    // Second pass (ECharts re-layouts on animation/resize): same results.
+    const secondPass = [0, 1, 2].map((i) => fresh({ dataIndex: i, rect: rects[i] })!);
+    expect(secondPass.map((r) => r.y)).toEqual(firstPass.map((r) => r.y));
+    expect(secondPass.map((r) => r.x)).toEqual(firstPass.map((r) => r.x));
+  });
+
+  it("leaves hidden/empty labels untouched", () => {
+    const empty = { stageId: "z", name: "Z", value: 5, incomingConversion: null, incomingDropOff: null, itemStyle: { color: "transparent" } };
+    const layout2 = createOutsideLabelLayout([empty], { leaderLength: 24, minGap: 20 });
+    expect(layout2({ dataIndex: 0, rect: rects[0] })).toBeUndefined();
   });
 });
 

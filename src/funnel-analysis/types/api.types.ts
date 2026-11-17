@@ -87,6 +87,8 @@ export interface FunnelChartConfig {
    * keeps each label level with its stage and merely hides overlaps.
    */
   outsideLabelArrangement?: "stacked" | "aligned";
+  /** Vertical breathing room (px per side) around staggered outside labels (default 6). */
+  outsideLabelGap?: number;
   showValues?: boolean;
   showPercentages?: boolean;
   showDropOffIndicators?: boolean;
