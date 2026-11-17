@@ -16,7 +16,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://example.com/your-org/funnel-chart.git"
+    "url": "git+https://github.com/jensuid/funnel-chart.git"
   },
   "engines": {
     "node": ">=20"
