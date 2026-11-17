@@ -21,6 +21,8 @@ export interface TransitionLabelDatum {
   /** Transition ENDING at this stage (from previous stage). */
   incomingConversion: number | null;
   incomingDropOff: number | null;
+  /** Stage's own label when the overlay carries it outside (auto strategy). */
+  takeoverText?: string;
   itemStyle: { color: string };
 }
 
@@ -34,8 +36,14 @@ export interface BuildTransitionLabelSeriesInput {
   minSize: number;
   maxSize: number;
   gap: number;
-  /** Stage ids whose own label moved outside — overlay labels blanked. */
-  hiddenStageIds?: Set<string>;
+  /**
+   * Stages whose label the overlay CARRIES to the outside slot (auto
+   * strategy): the overlay shows the stage's own text instead of the
+   * drop-off metrics, staggered with bent leader lines.
+   */
+  takeoverLabels?: Map<string, string>;
+  /** Stagger outside labels vertically (moveOverlap shiftY) + leader lines. */
+  stacked?: boolean;
   /** Overlay labels auto-hide above this stage count (crowding guard). */
   maxLabeledStages?: number;
 }
@@ -43,7 +51,24 @@ export interface BuildTransitionLabelSeriesInput {
 export function buildTransitionLabelSeries(
   input: BuildTransitionLabelSeriesInput,
 ): Record<string, unknown> {
-  const { stages, tokens, fontFamily, sort, orient, minSize, maxSize, gap, hiddenStageIds, maxLabeledStages } = input;
+  const {
+    stages,
+    tokens,
+    fontFamily,
+    sort,
+    orient,
+    minSize,
+    maxSize,
+    gap,
+    takeoverLabels,
+    stacked,
+    maxLabeledStages,
+  } = input;
+
+  // Density guard applies ONLY to drop-off metric labels — takeover stage
+  // labels (stage identification) always show.
+  const dropOffLabelsVisible =
+    maxLabeledStages === undefined || stages.length <= maxLabeledStages;
 
   const data: TransitionLabelDatum[] = stages.map((vm, index) => {
     const incoming =
@@ -60,15 +85,27 @@ export function buildTransitionLabelSeries(
       ...incoming,
       // Fully transparent — only labels are visible.
       itemStyle: { color: "transparent" },
+      // Takeover: this stage's own label lives in the overlay's outside
+      // slot (staggered), so show it here instead of the drop-off metrics.
+      ...(takeoverLabels?.has(vm.stage.id)
+        ? {
+            takeoverText: takeoverLabels.get(vm.stage.id),
+            label: {
+              show: true,
+              color: tokens.textColor,
+              fontWeight: "bold" as const,
+            },
+          }
+        : { label: { show: dropOffLabelsVisible } }),
     };
   });
 
   const formatter = (d: TransitionLabelDatum): string => {
+    // Takeover: show the stage's own label in this outside slot.
+    if (d.takeoverText) return d.takeoverText;
     if (d.incomingConversion === null && d.incomingDropOff === null) {
       return ""; // first stage has no incoming transition
     }
-    // Anti-collision: the stage's own label occupies the outside slot.
-    if (hiddenStageIds?.has(d.stageId)) return "";
     const parts = [
       `→ ${formatPercent(d.incomingConversion)}`,
       `↓ ${formatPercent(d.incomingDropOff)} drop-off`,
@@ -89,7 +126,7 @@ export function buildTransitionLabelSeries(
     silent: true,
     data,
     label: {
-      show: maxLabeledStages === undefined || stages.length <= maxLabeledStages,
+      show: true,
       position: "outside",
       color: tokens.mutedTextColor,
       fontFamily,
@@ -98,8 +135,15 @@ export function buildTransitionLabelSeries(
       formatter: (params: { data?: unknown }) =>
         formatter(params.data as TransitionLabelDatum),
     },
-    labelLine: { show: false },
-    labelLayout: { hideOverlap: true },
+    labelLine: {
+      show: !!stacked,
+      length: 10,
+      length2: 14,
+      lineStyle: { color: tokens.mutedTextColor, width: 1 },
+    },
+    labelLayout: stacked
+      ? { hideOverlap: false, moveOverlap: "shiftY" }
+      : { hideOverlap: true },
     emphasis: { disabled: true },
     tooltip: { show: false },
     // Never interactive or animated independently.

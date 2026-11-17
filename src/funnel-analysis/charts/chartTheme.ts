@@ -99,17 +99,23 @@ export function interpolateColor(a: string, b: string, t: number): string {
  * Monochrome ramp — one base color swept from a light tint through the base
  * itself to a darker shade. Ideal for funnels: the gradient reinforces the
  * stage progression without requiring the caller to hand-pick N colors.
+ * `direction` controls which end of the funnel gets the light tint.
  */
-export function monochromeRamp(baseColor: string, steps: number): string[] {
+export function monochromeRamp(
+  baseColor: string,
+  steps: number,
+  direction: "light-to-dark" | "dark-to-light" = "light-to-dark",
+): string[] {
   if (steps <= 1) return [baseColor];
   const light = interpolateColor(baseColor, "#FFFFFF", 0.78);
   const dark = interpolateColor(baseColor, "#000000", 0.35);
-  return Array.from({ length: steps }, (_, i) => {
+  const ramp = Array.from({ length: steps }, (_, i) => {
     const t = i / (steps - 1);
     return t <= 0.5
       ? interpolateColor(light, baseColor, t * 2)
       : interpolateColor(baseColor, dark, (t - 0.5) * 2);
   });
+  return direction === "dark-to-light" ? ramp.reverse() : ramp;
 }
 
 /**
@@ -121,10 +127,17 @@ export function monochromeRamp(baseColor: string, steps: number): string[] {
 export function resolveStagePalette(
   stageCount: number,
   theme?: FunnelAnalysisTheme,
-  funnel?: Pick<FunnelChartConfig, "colorPalette" | "colorMode" | "baseColor">,
+  funnel?: Pick<
+    FunnelChartConfig,
+    "colorPalette" | "colorMode" | "baseColor" | "rampDirection"
+  >,
 ): string[] {
   if (funnel?.colorMode === "ramp" && funnel.baseColor) {
-    return monochromeRamp(funnel.baseColor, Math.max(1, stageCount));
+    return monochromeRamp(
+      funnel.baseColor,
+      Math.max(1, stageCount),
+      funnel.rampDirection ?? "light-to-dark",
+    );
   }
   return funnel?.colorPalette ?? theme?.stageColors ?? [...DEFAULT_STAGE_COLORS];
 }

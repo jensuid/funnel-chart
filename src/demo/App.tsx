@@ -79,12 +79,15 @@ export function App() {
   const [labelOutsideThreshold, setLabelOutsideThreshold] = useState(15);
   const [compactLabelThreshold, setCompactLabelThreshold] = useState(25);
   const [dropOffLabelMaxStages, setDropOffLabelMaxStages] = useState(8);
+  const [labelAutoScale, setLabelAutoScale] = useState(true);
+  const [outsideLabelArrangement, setOutsideLabelArrangement] = useState<"stacked" | "aligned">("stacked");
   const [showValues, setShowValues] = useState(true);
   const [showPercentages, setShowPercentages] = useState(true);
   const [showDropOffIndicators, setShowDropOffIndicators] = useState(true);
   const [selectedStageEmphasis, setSelectedStageEmphasis] = useState(true);
   const [colorMode, setColorMode] = useState<"palette" | "ramp">("palette");
   const [baseColor, setBaseColor] = useState("#3B82F6");
+  const [rampDirection, setRampDirection] = useState<"light-to-dark" | "dark-to-light">("light-to-dark");
   const [fillGradient, setFillGradient] = useState(false);
 
   // --- trend chart ------------------------------------------------------------
@@ -159,12 +162,15 @@ export function App() {
       labelOutsideThreshold,
       compactLabelThreshold,
       dropOffLabelMaxStages,
+      labelAutoScale,
+      outsideLabelArrangement,
       showValues,
       showPercentages,
       showDropOffIndicators,
       selectedStageEmphasis,
       colorMode,
       baseColor: colorMode === "ramp" ? baseColor : undefined,
+      rampDirection: colorMode === "ramp" ? rampDirection : undefined,
       fillGradient,
     },
     trend: {
@@ -250,19 +256,34 @@ export function App() {
             <Num label="compactLabelThreshold (%)" value={compactLabelThreshold} onChange={setCompactLabelThreshold} min={0} max={100} />
           )}
           <Num label="dropOffLabelMaxStages" value={dropOffLabelMaxStages} onChange={setDropOffLabelMaxStages} min={0} max={50} />
+          <Toggle label="labelAutoScale" value={labelAutoScale} onChange={setLabelAutoScale} />
+          <Choice
+            label="outsideLabelArrangement"
+            value={outsideLabelArrangement}
+            options={["stacked", "aligned"] as const}
+            onChange={setOutsideLabelArrangement}
+          />
           <Toggle label="showValues" value={showValues} onChange={setShowValues} />
           <Toggle label="showPercentages" value={showPercentages} onChange={setShowPercentages} />
           <Toggle label="showDropOffIndicators" value={showDropOffIndicators} onChange={setShowDropOffIndicators} />
           <Toggle label="selectedStageEmphasis" value={selectedStageEmphasis} onChange={setSelectedStageEmphasis} />
           <Choice label="colorMode" value={colorMode} options={["palette", "ramp"] as const} onChange={setColorMode} />
           {colorMode === "ramp" && (
-            <Row label="baseColor">
-              <input
-                type="color"
-                value={baseColor}
-                onChange={(e) => setBaseColor(e.target.value)}
+            <>
+              <Row label="baseColor">
+                <input
+                  type="color"
+                  value={baseColor}
+                  onChange={(e) => setBaseColor(e.target.value)}
+                />
+              </Row>
+              <Choice
+                label="rampDirection"
+                value={rampDirection}
+                options={["light-to-dark", "dark-to-light"] as const}
+                onChange={setRampDirection}
               />
-            </Row>
+            </>
           )}
           <Toggle label="fillGradient" value={fillGradient} onChange={setFillGradient} />
           <div className="demo-row" style={{ gap: 4 }}>
@@ -272,6 +293,7 @@ export function App() {
               {
                 colorMode,
                 baseColor: colorMode === "ramp" ? baseColor : undefined,
+                rampDirection: colorMode === "ramp" ? rampDirection : undefined,
               },
             ).map((c, i) => (
               <span

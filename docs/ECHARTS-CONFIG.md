@@ -22,16 +22,22 @@ init dengan `{ renderer: "svg" }`. SVG dipilih demi ketajaman teks dan a11y.
   - `"fixed"`: semua label mengikuti `labelPosition` apa adanya.
   - Label `outside` selalu memakai `tokens.textColor` (bukan putih — bug lama:
     label putih tak terlihat di background putih).
-  - Anti-tabrakan: saat label stage pindah ke luar, label drop-off overlay di
-    stage yang sama dikosongkan (info tetap ada di tooltip & data table).
-  - `labelLayout: { hideOverlap: true }` di kedua series — ECharts otomatis
+  - **Anti-tumpuk label luar (default `outsideLabelArrangement: "stacked"`)**:
+    label stage yang pindah ke luar di-take-over oleh series overlay dan
+    di-stagger vertikal via `labelLayout.moveOverlap: "shiftY"` + garis sambung
+    bengkok 2 segmen (`labelLine.length/length2`) — teks tidak harus sejajar
+    dengan stage-nya. `"aligned"` mengembalikan perilaku sejajar + hideOverlap.
+  - **`labelAutoScale`** (default true): font label dalam mengecil proporsional
+    dengan lebar relatif bar (clamp 9–12px) agar teks tidak meluber keluar bar.
+  - `labelLayout: { hideOverlap: true }` di series utama — ECharts otomatis
     menyembunyikan label yang bertumpuk (penting untuk funnel padat).
 - **Konten label bertingkat** (auto mode): bar < `compactLabelThreshold`%
   (default 25) dari bar terlebar membuang baris count dulu (redundan secara
   visual dengan lebar bar) — hanya nama + %.
-- **`dropOffLabelMaxStages`** (default 8): label drop-off overlay otomatis
-  mati untuk funnel dengan stage lebih banyak — mencegah penggandaan label;
-  info drop-off tetap di tooltip & data table.
+- **`dropOffLabelMaxStages`** (default 8): label METRIK drop-off overlay
+  otomatis mati untuk funnel dengan stage lebih banyak; label takeover stage
+  TETAP tampil (identifikasi stage tidak pernah disembunyikan). Info drop-off
+  tetap di tooltip & data table.
 - Drop-off indicators (D3): series funnel kedua **transparan** dengan layout
   identik (sort/orient/min/max/gap) hanya untuk label luar.
 - `itemStyle`: fill = warna stage brand; `borderColor = accessibleStroke(...)`
@@ -67,8 +73,9 @@ funnel fill, trend line, dan transition color (D2 tetap konsisten). Prioritas:
 
 1. **Ramp monokrom** — `funnel.colorMode: "ramp"` + `funnel.baseColor`:
    satu warna dasar disapu light tint → base → dark shade sepanjang jumlah
-   stage (`monochromeRamp`). Cocok untuk funnel karena gradasi menegaskan
-   progresi; bekerja untuk jumlah stage berapa pun.
+   stage (`monochromeRamp`). Arah dapat dibalik dengan `rampDirection:
+   "dark-to-light"` (gelap di stage awal, terang di akhir). Cocok untuk funnel
+   karena gradasi menegaskan progresi; bekerja untuk jumlah stage berapa pun.
 2. **`funnel.colorPalette`** — palette eksplisit per stage (dahulu dideklarasikan
    tapi tidak dikonsumsi; kini aktif).
 3. **`theme.stageColors`** — palette level tema.

@@ -79,6 +79,14 @@ export interface FunnelChartConfig {
   compactLabelThreshold?: number;
   /** Overlay drop-off labels auto-hide above this stage count (default 8). */
   dropOffLabelMaxStages?: number;
+  /** Auto-shrink inside label font on narrow bars (default true, auto mode). */
+  labelAutoScale?: boolean;
+  /**
+   * Outside labels: "stacked" (default) staggers them vertically with bent
+   * leader lines (moveOverlap shiftY) so they never pile up; "aligned"
+   * keeps each label level with its stage and merely hides overlaps.
+   */
+  outsideLabelArrangement?: "stacked" | "aligned";
   showValues?: boolean;
   showPercentages?: boolean;
   showDropOffIndicators?: boolean;
@@ -88,6 +96,8 @@ export interface FunnelChartConfig {
   colorMode?: "palette" | "ramp";
   /** Base color for colorMode "ramp" (any hex, e.g. "#3B82F6"). */
   baseColor?: string;
+  /** Which funnel end gets the light tint (default "light-to-dark"). */
+  rampDirection?: "light-to-dark" | "dark-to-light";
   /** Per-bar linear gradient (stage color → lighter variant). */
   fillGradient?: boolean;
   selectedStageEmphasis?: boolean;
